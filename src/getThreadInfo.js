@@ -2,7 +2,7 @@
 
 var utils = require("../utils");
 var log = require("npmlog");
-// tương lai đi rồi fix ahahha
+
 function formatEventReminders(reminder) {
   return {
     reminderID: reminder.id,
@@ -31,12 +31,7 @@ function formatEventReminders(reminder) {
 }
 
 function formatThreadGraphQLResponse(data) {
-  try{
-    var messageThread = data.o0.data.message_thread;
-  } catch (err){
-    console.error("GetThreadInfoGraphQL", "Can't get this thread info!");
-    return {err: err};
-  }
+  var messageThread = data.o0.data.message_thread;
   var threadID = messageThread.thread_key.thread_fbid
     ? messageThread.thread_key.thread_fbid
     : messageThread.thread_key.other_user_id;
@@ -184,6 +179,7 @@ module.exports = function(defaultFuncs, api, ctx) {
       .post("https://www.facebook.com/api/graphqlbatch/", ctx.jar, form)
       .then(utils.parseAndCheckLogin(ctx, defaultFuncs))
       .then(function(resData) {
+        
         if (resData.error) {
           throw resData;
         }
@@ -191,13 +187,15 @@ module.exports = function(defaultFuncs, api, ctx) {
         // failure one.
         // @TODO What do we do in this case?
         if (resData[resData.length - 1].error_results !== 0) {
-          console.error("GetThreadInfo", "Well darn there was an error_result");
+          throw resData[0].o0.errors[0];
         }
-
+				if (!resData[0].o0.data.message_thread) {
+				  throw new Error("can't find this thread");
+				}
         callback(null, formatThreadGraphQLResponse(resData[0]));
       })
       .catch(function(err) {
-        log.error("getThreadInfoGraphQL", "Lỗi: getThreadInfoGraphQL Có Thể Do Bạn Spam Quá Nhiều, Hãy Thử Lại !");
+        log.error("getThreadInfoGraphQL", err);
         return callback(err);
       });
 
